@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Defesa Siciliana 🍋</title>
+  <link rel="stylesheet" href="vendor/chessboard.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="top">
+    <div>
+      <h1>Defesa Siciliana 🍋</h1>
+      <p class="hint">Arraste para mover a árvore. A roda do mouse muda o zoom. Clique para abrir um ramo. Num tabuleiro sem continuação, o clique pede ao Stockfish (🐟) os próximos lances.</p>
+    </div>
+    <div class="zoom">
+      <button type="button" id="zoom-out">−</button>
+      <span id="zoom-label">100%</span>
+      <button type="button" id="zoom-in">+</button>
+    </div>
+  </div>
+  <div id="view"><div id="scaler"><div id="tree"></div></div></div>
+  <script src="vendor/jquery.min.js"></script>
+  <script src="vendor/chessboard.min.js"></script>
+  <script src="chess.js"></script>
+  <script src="openings.js"></script>
+  <script src="tree.js"></script>
+</body>
+</html>
