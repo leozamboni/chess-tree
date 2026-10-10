@@ -235,10 +235,29 @@
     { passive: false }
   );
 
+  const pointers = new Map();
   let drag = null;
+  let pinch = null;
   let ignoreClick = false;
+
+  function pinchPoints() {
+    return [...pointers.values()];
+  }
+
   view.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return;
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (pointers.size >= 2) {
+      drag = null;
+      view.classList.remove("dragging");
+      const [a, b] = pinchPoints();
+      pinch = {
+        dist: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)),
+        scale: scale,
+      };
+      ignoreClick = true;
+      return;
+    }
     drag = {
       id: event.pointerId,
       x: event.clientX,
@@ -249,6 +268,18 @@
     };
   });
   view.addEventListener("pointermove", (event) => {
+    if (!pointers.has(event.pointerId)) return;
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (pointers.size >= 2) {
+      const [a, b] = pinchPoints();
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      if (!pinch) {
+        pinch = { dist: Math.max(1, dist), scale: scale };
+      }
+      zoomAt(pinch.scale * (dist / pinch.dist), (a.x + b.x) / 2, (a.y + b.y) / 2);
+      ignoreClick = true;
+      return;
+    }
     if (!drag || event.pointerId !== drag.id) return;
     const dx = event.clientX - drag.x;
     const dy = event.clientY - drag.y;
@@ -261,13 +292,39 @@
     view.scrollTop = drag.top - dy;
   });
   function endDrag(event) {
-    if (!drag || event.pointerId !== drag.id) return;
-    ignoreClick = drag.moved;
-    drag = null;
-    view.classList.remove("dragging");
+    const wasPinch = pointers.size >= 2;
+    pointers.delete(event.pointerId);
+    if (pointers.size < 2) pinch = null;
+    if (drag && event.pointerId === drag.id) {
+      ignoreClick = drag.moved || wasPinch;
+      drag = null;
+      view.classList.remove("dragging");
+    }
+    if (wasPinch) ignoreClick = true;
+    if (pointers.size === 1) {
+      const [id, point] = [...pointers.entries()][0];
+      drag = {
+        id: id,
+        x: point.x,
+        y: point.y,
+        left: view.scrollLeft,
+        top: view.scrollTop,
+        moved: true,
+      };
+    }
   }
   view.addEventListener("pointerup", endDrag);
   view.addEventListener("pointercancel", endDrag);
+  view.addEventListener(
+    "touchmove",
+    (event) => {
+      if (event.touches.length >= 2) event.preventDefault();
+    },
+    { passive: false }
+  );
+  ["gesturestart", "gesturechange", "gestureend"].forEach((type) => {
+    view.addEventListener(type, (event) => event.preventDefault());
+  });
   view.addEventListener(
     "click",
     (event) => {
