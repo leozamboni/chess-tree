@@ -3,14 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Defesa Siciliana 🍋</title>
+  <title>Defesa Siciliana</title>
   <link rel="stylesheet" href="vendor/chessboard.min.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="top">
     <div>
-      <h1>Defesa Siciliana 🍋</h1>
+      <label class="opening" for="opening">Abertura
+        <select id="opening">
+          <option value="sicilian">Defesa Siciliana</option>
+          <option value="spanish">Abertura Espanhola</option>
+        </select>
+      </label>
       <p class="hint">Arraste para mover a árvore. A roda do mouse ou a pinça mudam o zoom. Clique para abrir um ramo. Num tabuleiro sem continuação, o clique pede ao Stockfish (🐟) os próximos lances.</p>
     </div>
     <div class="zoom">

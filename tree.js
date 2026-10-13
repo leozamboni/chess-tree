@@ -174,8 +174,13 @@
     }
   }
 
-  const root = clone(SICILIAN);
-  lineMoves(root, [], 0);
+  const OPENINGS = {
+    sicilian: { title: "Defesa Siciliana", tree: SICILIAN },
+    spanish: { title: "Abertura Espanhola", tree: SPANISH },
+  };
+
+  let root;
+  let generation = 0;
   const host = document.getElementById("tree");
 
   function draw() {
@@ -219,9 +224,23 @@
     view.scrollTop = scrollTop;
   }
 
-  draw();
   const view = document.getElementById("view");
-  view.scrollLeft = Math.max(0, (root.x + BOARD / 2) * scale - view.clientWidth / 2);
+
+  function showOpening(id) {
+    const opening = OPENINGS[id];
+    generation++;
+    root = clone(opening.tree);
+    lineMoves(root, [], 0);
+    document.title = opening.title;
+    draw();
+    view.scrollLeft = Math.max(0, (root.x + BOARD / 2) * scale - view.clientWidth / 2);
+    view.scrollTop = 0;
+  }
+
+  document.getElementById("opening").addEventListener("change", (event) => {
+    showOpening(event.target.value);
+  });
+  showOpening(document.getElementById("opening").value);
 
   document.getElementById("zoom-in").addEventListener("click", () => zoomAt(scale * 1.2, viewCenter().x, viewCenter().y));
   document.getElementById("zoom-out").addEventListener("click", () => zoomAt(scale / 1.2, viewCenter().x, viewCenter().y));
@@ -458,11 +477,13 @@
 
   function expandWithEngine(node) {
     if (!node.pos) return;
+    const gen = generation;
     node.loading = true;
     node.status = "Calculando continuação…";
     draw();
     suggestMoves(node)
       .then((pvs) => {
+        if (gen !== generation) return;
         node.loading = false;
         node.status = null;
         pvs.forEach((pv) => {
@@ -488,6 +509,7 @@
         draw();
       })
       .catch((err) => {
+        if (gen !== generation) return;
         node.loading = false;
         node.status = err.message || "Não foi possível calcular a continuação.";
         draw();
