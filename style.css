@@ -56,6 +56,12 @@ body {
   cursor: pointer;
 }
 
+#flip {
+  width: auto;
+  padding: 0 8px;
+  font-size: 14px;
+}
+
 #zoom-label {
   min-width: 42px;
   text-align: center;

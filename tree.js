@@ -7,6 +7,7 @@
   let scale = 1;
   let layout = { w: 0, h: 0 };
   let boardSeq = 0;
+  let orientation = "white";
   const MIN_SCALE = 0.3;
   const MAX_SCALE = 2.5;
 
@@ -97,6 +98,7 @@
       if (!board.dataset.fen) return;
       Chessboard(board.id, {
         position: board.dataset.fen,
+        orientation: orientation,
         pieceTheme: "vendor/pieces/{piece}.png",
         showNotation: false,
         draggable: false,
@@ -176,6 +178,7 @@
 
   const OPENINGS = {
     sicilian: { title: "Defesa Siciliana", tree: SICILIAN },
+    scandinavian: { title: "Defesa Escandinava", tree: SCANDINAVIAN },
     spanish: { title: "Abertura Espanhola", tree: SPANISH },
   };
 
@@ -226,8 +229,17 @@
 
   const view = document.getElementById("view");
 
+  function updateFlipButton() {
+    const flip = document.getElementById("flip");
+    const blackAtBottom = orientation === "black";
+    flip.textContent = blackAtBottom ? "Brancas embaixo" : "Pretas embaixo";
+    flip.title = blackAtBottom ? "Colocar as brancas embaixo" : "Colocar as pretas embaixo";
+  }
+
   function showOpening(id) {
     const opening = OPENINGS[id];
+    orientation = /^defesa\b/i.test(opening.title) ? "black" : "white";
+    updateFlipButton();
     generation++;
     root = clone(opening.tree);
     lineMoves(root, [], 0);
@@ -241,6 +253,12 @@
     showOpening(event.target.value);
   });
   showOpening(document.getElementById("opening").value);
+
+  document.getElementById("flip").addEventListener("click", () => {
+    orientation = orientation === "black" ? "white" : "black";
+    updateFlipButton();
+    draw();
+  });
 
   document.getElementById("zoom-in").addEventListener("click", () => zoomAt(scale * 1.2, viewCenter().x, viewCenter().y));
   document.getElementById("zoom-out").addEventListener("click", () => zoomAt(scale / 1.2, viewCenter().x, viewCenter().y));
