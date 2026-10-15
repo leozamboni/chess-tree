@@ -179,6 +179,7 @@
   const OPENINGS = {
     sicilian: { title: "Defesa Siciliana", tree: SICILIAN },
     scandinavian: { title: "Defesa Escandinava", tree: SCANDINAVIAN },
+    slav: { title: "Defesa Eslava", tree: SLAV },
     spanish: { title: "Abertura Espanhola", tree: SPANISH },
   };
 
