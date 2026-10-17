@@ -180,6 +180,7 @@
     sicilian: { title: "Defesa Siciliana", tree: SICILIAN },
     scandinavian: { title: "Defesa Escandinava", tree: SCANDINAVIAN },
     slav: { title: "Defesa Eslava", tree: SLAV },
+    orthodox: { title: "Defesa Ortodoxa", tree: ORTHODOX },
     spanish: { title: "Abertura Espanhola", tree: SPANISH },
   };
 
@@ -494,6 +495,101 @@
     return stockfishMoves(fen, node.pos.white);
   }
 
+  const MEDALS = ["🥇 ", "🥈 ", "🥉 "];
+
+  function stripMedal(name) {
+    return name.replace(/^(?:(?:🥇|🥈|🥉|⭐) )+/u, "");
+  }
+
+  function sanToUci(pos, san) {
+    const moves = Chess.legalMoves(pos);
+    for (let i = 0; i < moves.length; i++) {
+      const mv = moves[i];
+      let uci = Chess.squareName(mv.from.f, mv.from.r) + Chess.squareName(mv.to.f, mv.to.r);
+      if (mv.promo) uci += mv.promo.toLowerCase();
+      try {
+        if (Chess.uciToSan(pos, uci) === san) return uci;
+      } catch (err) {
+        /* outro lance legal */
+      }
+    }
+    return null;
+  }
+
+  function sideValue(pv) {
+    if (pv.mate != null) return pv.mate > 0 ? 1000000 - pv.mate : -1000000 - pv.mate;
+    return pv.cp == null ? -999999 : pv.cp;
+  }
+
+  function stockfishCompare(fen, ucis) {
+    const run = () =>
+      stockfishWorker().then(
+        (worker) =>
+          new Promise((resolve, reject) => {
+            const pvs = {};
+            const timer = setTimeout(() => {
+              worker.removeEventListener("message", onMessage);
+              reject(new Error("A IA demorou demais"));
+            }, 30000);
+            const onMessage = (event) => {
+              const text = String(event.data || "");
+              if (text.indexOf(" pv ") !== -1) {
+                const mp = /multipv (\d+)/.exec(text);
+                const pv = / pv ([a-h][1-8][a-h][1-8][qrbn]?)/.exec(text);
+                const cp = /score cp (-?\d+)/.exec(text);
+                const mate = /score mate (-?\d+)/.exec(text);
+                if (mp && pv) pvs[mp[1]] = { uci: pv[1], cp: cp ? Number(cp[1]) : null, mate: mate ? Number(mate[1]) : null };
+              }
+              if (text.indexOf("bestmove") === 0) {
+                clearTimeout(timer);
+                worker.removeEventListener("message", onMessage);
+                resolve(Object.keys(pvs).sort((a, b) => Number(a) - Number(b)).map((key) => pvs[key]));
+              }
+            };
+            worker.addEventListener("message", onMessage);
+            worker.postMessage("setoption name MultiPV value " + ucis.length);
+            worker.postMessage("position fen " + fen);
+            worker.postMessage("go depth 12 searchmoves " + ucis.join(" "));
+          })
+      );
+    const job = engineChain.then(run, run);
+    engineChain = job.then(
+      () => {},
+      () => {}
+    );
+    return job;
+  }
+
+  function awardMedals(node) {
+    if (!node.pos || node.children.length < 2) return Promise.resolve();
+    const pairs = node.children.map((child) => ({ child, uci: sanToUci(node.pos, child.moves[0]) }));
+    const ucis = [];
+    pairs.forEach((pair) => {
+      if (pair.uci && ucis.indexOf(pair.uci) === -1) ucis.push(pair.uci);
+    });
+    if (ucis.length < 2) return Promise.resolve();
+    return stockfishCompare(Chess.fullFen(node.pos, node.line.length), ucis).then((ranked) => {
+      const byUci = new Map();
+      ranked.forEach((pv) => byUci.set(pv.uci, pv));
+      const scored = [];
+      const rest = [];
+      pairs.forEach((pair) => {
+        const pv = pair.uci ? byUci.get(pair.uci) : null;
+        if (!pv) rest.push(pair.child);
+        else scored.push({ child: pair.child, value: sideValue(pv) });
+      });
+      if (!scored.length) return;
+      scored.sort((a, b) => b.value - a.value);
+      scored.forEach((item, index) => {
+        item.child.name = (MEDALS[index] || "") + stripMedal(item.child.name);
+      });
+      rest.forEach((child) => {
+        child.name = stripMedal(child.name);
+      });
+      node.children = scored.map((item) => item.child).concat(rest);
+    });
+  }
+
   function expandWithEngine(node) {
     if (!node.pos) return;
     const gen = generation;
@@ -503,8 +599,6 @@
     suggestMoves(node)
       .then((pvs) => {
         if (gen !== generation) return;
-        node.loading = false;
-        node.status = null;
         pvs.forEach((pv) => {
           let san;
           try {
@@ -523,9 +617,27 @@
           bindNode(child, node.line);
           node.children.push(child);
         });
-        if (!node.children.length) node.status = "A IA não encontrou continuação.";
-        else node.open = true;
-        draw();
+        if (!node.children.length) {
+          node.loading = false;
+          node.status = "A IA não encontrou continuação.";
+          draw();
+          return;
+        }
+        node.open = true;
+        awardMedals(node).then(
+          () => {
+            if (gen !== generation) return;
+            node.loading = false;
+            node.status = null;
+            draw();
+          },
+          () => {
+            if (gen !== generation) return;
+            node.loading = false;
+            node.status = null;
+            draw();
+          }
+        );
       })
       .catch((err) => {
         if (gen !== generation) return;
